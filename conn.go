@@ -205,6 +205,17 @@ func (c *conn) initConn(netConn net.Conn) error {
 	return nil
 }
 
+// remoteAddr returns the peer address of the underlying net.Conn. It locks
+// because initConn can swap netConn (StartTLS) while requests are in flight.
+func (c *conn) remoteAddr() net.Addr {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.netConn == nil {
+		return nil
+	}
+	return c.netConn.RemoteAddr()
+}
+
 func (c *conn) close() error {
 	const op = "gldap.(Conn).close"
 	c.requestsWg.Wait()
