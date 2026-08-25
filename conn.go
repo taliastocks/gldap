@@ -222,6 +222,16 @@ func (c *conn) remoteAddr() net.Addr {
 	return c.netConn.RemoteAddr()
 }
 
+// remoteAddrString returns the peer address for logging.  It returns "unknown"
+// when the address isn't available (remoteAddr returns nil once the conn has
+// been closed), so callers can log it without a nil check.
+func (c *conn) remoteAddrString() string {
+	if addr := c.remoteAddr(); addr != nil {
+		return addr.String()
+	}
+	return "unknown"
+}
+
 func (c *conn) close() error {
 	const op = "gldap.(Conn).close"
 	c.requestsWg.Wait()
