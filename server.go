@@ -201,6 +201,9 @@ func (s *Server) Run(addr string, opt ...Option) error {
 			return fmt.Errorf("%s: unable to create in-memory conn: %w", op, err)
 		}
 		localConnID := connID
+		// capture the peer address up front: the conn-level logs below need it
+		// after conn.close(), at which point remoteAddr() is no longer available.
+		localRemoteAddr := conn.remoteAddrString()
 		s.connWg.Add(1)
 		go func() {
 			defer func() {
@@ -208,7 +211,7 @@ func (s *Server) Run(addr string, opt ...Option) error {
 				s.connWg.Done()
 				err := conn.close()
 				if err != nil {
-					s.logger.Error("error closing conn", "op", op, "conn", localConnID, "conn/req", "err", err)
+					s.logger.Error("error closing conn", "op", op, "conn", localConnID, "remote_addr", localRemoteAddr, "conn/req", "err", err)
 					// we are intentionally not returning here; since we still
 					// need to call the onCloseHandler if it's not nil
 				}
@@ -222,7 +225,7 @@ func (s *Server) Run(addr string, opt ...Option) error {
 				// handling a single conn causes a panic
 				defer func() {
 					if r := recover(); r != nil {
-						s.logger.Error("Caught panic while serving request", "op", op, "conn", localConnID, "conn/req", fmt.Sprintf("%+v: %+v", c, r))
+						s.logger.Error("Caught panic while serving request", "op", op, "conn", localConnID, "remote_addr", localRemoteAddr, "conn/req", fmt.Sprintf("%+v: %+v", c, r))
 					}
 				}()
 			}
@@ -239,7 +242,7 @@ func (s *Server) Run(addr string, opt ...Option) error {
 				}
 			}
 			if err := conn.serveRequests(); err != nil {
-				s.logger.Error("error handling conn", "op", op, "conn", localConnID, "err", err.Error())
+				s.logger.Error("error handling conn", "op", op, "conn", localConnID, "remote_addr", localRemoteAddr, "err", err.Error())
 			}
 		}()
 	}
